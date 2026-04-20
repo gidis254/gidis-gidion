@@ -1,5 +1,7 @@
 import Link from "next/link";
+import type { Product } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { isDbUnavailableError } from "@/lib/db-fallback";
 import { ProductCard } from "@/components/product-card";
 
 export default async function HomePage() {
@@ -11,17 +13,32 @@ export default async function HomePage() {
     "Inclusive Tools",
   ] as const;
 
-  const featuredByCategory = await Promise.all(
-    featuredCategories.map(async (category) => {
-      const products = await prisma.product.findMany({
-        where: { category },
-        take: 4,
-        orderBy: { createdAt: "desc" },
-      });
+  let featuredByCategory: { category: string; products: Product[] }[] = [];
+  let dbUnavailable = false;
 
-      return { category, products };
-    }),
-  );
+  try {
+    featuredByCategory = await Promise.all(
+      featuredCategories.map(async (category) => {
+        const products = await prisma.product.findMany({
+          where: { category },
+          take: 4,
+          orderBy: { createdAt: "desc" },
+        });
+
+        return { category, products };
+      }),
+    );
+  } catch (error) {
+    if (isDbUnavailableError(error)) {
+      dbUnavailable = true;
+      featuredByCategory = featuredCategories.map((category) => ({
+        category,
+        products: [],
+      }));
+    } else {
+      throw error;
+    }
+  }
 
   return (
     <div>
@@ -69,6 +86,11 @@ export default async function HomePage() {
       </section>
 
       <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
+        {dbUnavailable && (
+          <div className="mb-6 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            Product data is temporarily unavailable. Please check back shortly.
+          </div>
+        )}
         <div className="mb-8 flex items-end justify-between gap-4">
           <div>
             <h2 className="text-2xl font-bold text-slate-900">

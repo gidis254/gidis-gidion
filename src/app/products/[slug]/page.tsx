@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { isDbUnavailableError } from "@/lib/db-fallback";
 import { formatKes } from "@/lib/format-kes";
 import { AddToCartButton } from "@/components/add-to-cart-button";
 import { ReviewSection } from "@/components/review-section";
@@ -10,10 +11,17 @@ type Props = { params: Promise<{ slug: string }> };
 
 export async function generateMetadata({ params }: Props) {
   const { slug } = await params;
-  const product = await prisma.product.findUnique({
-    where: { slug },
-    select: { name: true, description: true },
-  });
+  let product: { name: string; description: string } | null = null;
+  try {
+    product = await prisma.product.findUnique({
+      where: { slug },
+      select: { name: true, description: true },
+    });
+  } catch (error) {
+    if (!isDbUnavailableError(error)) {
+      throw error;
+    }
+  }
   if (!product) return { title: "Product" };
   return {
     title: `${product.name} | Gidis Kitchen Shop`,
@@ -23,10 +31,29 @@ export async function generateMetadata({ params }: Props) {
 
 export default async function ProductPage({ params }: Props) {
   const { slug } = await params;
-  const product = await prisma.product.findUnique({
-    where: { slug },
-  });
+  let product: Awaited<ReturnType<typeof prisma.product.findUnique>> = null;
+  let dbUnavailable = false;
+  try {
+    product = await prisma.product.findUnique({
+      where: { slug },
+    });
+  } catch (error) {
+    if (isDbUnavailableError(error)) {
+      dbUnavailable = true;
+    } else {
+      throw error;
+    }
+  }
 
+  if (dbUnavailable) {
+    return (
+      <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
+        <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-4 text-amber-900">
+          Product details are temporarily unavailable. Please try again later.
+        </div>
+      </div>
+    );
+  }
   if (!product) notFound();
 
   return (

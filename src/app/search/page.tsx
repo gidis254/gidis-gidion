@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { isDbUnavailableError } from "@/lib/db-fallback";
 import { productSearchWhereFromQuery } from "@/lib/product-search";
 import { ProductCard } from "@/components/product-card";
 
@@ -10,13 +11,29 @@ export default async function SearchPage({ searchParams }: Props) {
   const query = q?.trim() ?? "";
   const searchWhere = productSearchWhereFromQuery(query);
 
-  const products = await prisma.product.findMany({
-    where: searchWhere,
-    orderBy: { name: "asc" },
-  });
+  let products: Awaited<ReturnType<typeof prisma.product.findMany>> = [];
+  let dbUnavailable = false;
+
+  try {
+    products = await prisma.product.findMany({
+      where: searchWhere,
+      orderBy: { name: "asc" },
+    });
+  } catch (error) {
+    if (isDbUnavailableError(error)) {
+      dbUnavailable = true;
+    } else {
+      throw error;
+    }
+  }
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
+      {dbUnavailable && (
+        <div className="mb-6 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          Search is temporarily unavailable while product data reconnects.
+        </div>
+      )}
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-slate-900">
           {query ? `Search results for “${query}”` : "Search"}

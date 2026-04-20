@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { isDbUnavailableError } from "@/lib/db-fallback";
 import { productSearchWhereFromQuery } from "@/lib/product-search";
 import { ProductCard } from "@/components/product-card";
 
@@ -22,19 +23,36 @@ export default async function ProductsPage({ searchParams }: Props) {
   const where: Prisma.ProductWhereInput | undefined =
     andParts.length > 0 ? { AND: andParts } : undefined;
 
-  const products = await prisma.product.findMany({
-    where,
-    orderBy: { name: "asc" },
-  });
+  let products: Awaited<ReturnType<typeof prisma.product.findMany>> = [];
+  let cats: string[] = [];
+  let dbUnavailable = false;
 
-  const categories = await prisma.product.findMany({
-    select: { category: true },
-    distinct: ["category"],
-  });
-  const cats = categories.map((c) => c.category);
+  try {
+    products = await prisma.product.findMany({
+      where,
+      orderBy: { name: "asc" },
+    });
+
+    const categories = await prisma.product.findMany({
+      select: { category: true },
+      distinct: ["category"],
+    });
+    cats = categories.map((c) => c.category);
+  } catch (error) {
+    if (isDbUnavailableError(error)) {
+      dbUnavailable = true;
+    } else {
+      throw error;
+    }
+  }
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
+      {dbUnavailable && (
+        <div className="mb-6 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          Product data is temporarily unavailable. Please try again shortly.
+        </div>
+      )}
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">

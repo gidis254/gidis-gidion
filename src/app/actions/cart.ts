@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { isDbUnavailableError } from "@/lib/db-fallback";
 import { getGuestId } from "@/lib/guest";
 
 async function cartWhere() {
@@ -19,13 +20,20 @@ export async function getCart() {
   if (!w.userId && !w.guestId) {
     return { items: [], count: 0, subtotal: 0 };
   }
-  const items = await prisma.cartItem.findMany({
-    where: w.userId ? { userId: w.userId } : { guestId: w.guestId! },
-    include: { product: true },
-  });
-  const count = items.reduce((s, i) => s + i.quantity, 0);
-  const subtotal = items.reduce((s, i) => s + i.quantity * i.product.price, 0);
-  return { items, count, subtotal };
+  try {
+    const items = await prisma.cartItem.findMany({
+      where: w.userId ? { userId: w.userId } : { guestId: w.guestId! },
+      include: { product: true },
+    });
+    const count = items.reduce((s, i) => s + i.quantity, 0);
+    const subtotal = items.reduce((s, i) => s + i.quantity * i.product.price, 0);
+    return { items, count, subtotal };
+  } catch (error) {
+    if (isDbUnavailableError(error)) {
+      return { items: [], count: 0, subtotal: 0 };
+    }
+    throw error;
+  }
 }
 
 export async function addToCart(productId: string, quantity = 1) {
