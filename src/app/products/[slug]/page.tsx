@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { isDbUnavailableError } from "@/lib/db-fallback";
 import { formatKes } from "@/lib/format-kes";
@@ -8,6 +9,10 @@ import { AddToCartButton } from "@/components/add-to-cart-button";
 import { ReviewSection } from "@/components/review-section";
 
 type Props = { params: Promise<{ slug: string }> };
+
+type ProductWithCategory = Prisma.ProductGetPayload<{
+  include: { category: true };
+}>;
 
 export async function generateMetadata({ params }: Props) {
   const { slug } = await params;
@@ -31,11 +36,12 @@ export async function generateMetadata({ params }: Props) {
 
 export default async function ProductPage({ params }: Props) {
   const { slug } = await params;
-  let product: Awaited<ReturnType<typeof prisma.product.findUnique>> = null;
+  let product: ProductWithCategory | null = null;
   let dbUnavailable = false;
   try {
     product = await prisma.product.findUnique({
       where: { slug },
+      include: { category: true },
     });
   } catch (error) {
     if (isDbUnavailableError(error)) {
@@ -83,7 +89,7 @@ export default async function ProductPage({ params }: Props) {
         </div>
         <div>
           <p className="text-sm font-semibold uppercase tracking-wide text-sky-700">
-            {product.category}
+            {product.category?.name}
           </p>
           <h1 className="mt-1 text-3xl font-bold text-slate-900">
             {product.name}

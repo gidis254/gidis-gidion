@@ -3,36 +3,43 @@ import type { Product } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { isDbUnavailableError } from "@/lib/db-fallback";
 import { ProductCard } from "@/components/product-card";
+import { ProductSlideshow } from "@/components/product-slideshow";
 
 export default async function HomePage() {
   const featuredCategories = [
-    "Major Equipment",
-    "Crockery (Dinnerware)",
-    "Glassware",
-    "Cutlery & Hand Utensils",
-    "Inclusive Tools",
+    "cookware",
+    "bakeware",
+    "appliances",
+    "drinkware",
+    "dinnerware",
   ] as const;
 
-  let featuredByCategory: { category: string; products: Product[] }[] = [];
+  let featuredByCategory: { category: string; slug: string; products: (Product & { category: { name: string } })[] }[] = [];
   let dbUnavailable = false;
 
   try {
     featuredByCategory = await Promise.all(
-      featuredCategories.map(async (category) => {
+      featuredCategories.map(async (categorySlug) => {
         const products = await prisma.product.findMany({
-          where: { category },
+          where: { category: { slug: categorySlug } },
           take: 4,
           orderBy: { createdAt: "desc" },
+          include: { category: { select: { name: true } } },
         });
 
-        return { category, products };
+        return {
+          category: products[0]?.category?.name || categorySlug,
+          slug: categorySlug,
+          products,
+        };
       }),
     );
   } catch (error) {
     if (isDbUnavailableError(error)) {
       dbUnavailable = true;
-      featuredByCategory = featuredCategories.map((category) => ({
-        category,
+      featuredByCategory = featuredCategories.map((categorySlug) => ({
+        category: categorySlug,
+        slug: categorySlug,
         products: [],
       }));
     } else {
@@ -42,47 +49,8 @@ export default async function HomePage() {
 
   return (
     <div>
-      <section className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
-        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:flex lg:items-center lg:gap-12 lg:py-20">
-          <div className="flex-1">
-            <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl lg:text-5xl">
-              Equip your kitchen — we supply &amp; install
-            </h1>
-            <p className="mt-4 max-w-xl text-lg text-zinc-300">
-              Professional tools, appliances, and utensils. All prices in{" "}
-              <strong className="text-white">Kenyan shillings (KES)</strong>. Use
-              the search bar above to find anything in our catalog.
-            </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Link
-                href="/products"
-                className="inline-flex rounded-xl bg-sky-500 px-6 py-3 font-bold text-white shadow-lg hover:bg-sky-400"
-              >
-                Shop now
-              </Link>
-              <Link
-                href="/register"
-                className="inline-flex rounded-xl bg-white/10 px-6 py-3 font-semibold text-white hover:bg-white/20"
-              >
-                Create account
-              </Link>
-            </div>
-          </div>
-          <div className="mt-10 grid flex-1 grid-cols-2 gap-3 text-sm lg:mt-0">
-            <div className="rounded-2xl bg-white/10 p-4 backdrop-blur">
-              <p className="font-bold text-sky-200">Installation</p>
-              <p className="mt-1 text-zinc-300">
-                Expert fitting for your equipment.
-              </p>
-            </div>
-            <div className="rounded-2xl bg-white/10 p-4 backdrop-blur">
-              <p className="font-bold text-sky-200">Reviews</p>
-              <p className="mt-1 text-zinc-300">
-                Real buyers rate every product.
-              </p>
-            </div>
-          </div>
-        </div>
+      <section className="w-full">
+        <ProductSlideshow products={featuredByCategory.flatMap(({ products }) => products).slice(0, 12)} />
       </section>
 
       <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
@@ -108,11 +76,23 @@ export default async function HomePage() {
           </Link>
         </div>
         <div className="space-y-10">
-          {featuredByCategory.map(({ category, products }) => (
-            <div key={category}>
-              <h3 className="mb-4 text-lg font-semibold text-slate-900">
-                {category}
-              </h3>
+          {featuredByCategory.map(({ category, slug, products }) => (
+            <div key={slug}>
+              <div className="mb-4 flex items-center justify-between gap-4">
+                <Link
+                  href={`/products?cat=${encodeURIComponent(slug)}`}
+                  className="text-lg font-semibold text-slate-900 hover:text-sky-700"
+                  aria-label={`View all ${category} products`}
+                >
+                  {category}
+                </Link>
+                <Link
+                  href={`/products?cat=${encodeURIComponent(slug)}`}
+                  className="rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-700 hover:bg-slate-200"
+                >
+                  View all
+                </Link>
+              </div>
               {products.length > 0 ? (
                 <div className="grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-4">
                   {products.map((p) => (

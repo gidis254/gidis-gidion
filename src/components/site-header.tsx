@@ -14,7 +14,7 @@ export async function SiteHeader() {
     <header className="sticky top-0 z-40 bg-white shadow-md shadow-zinc-200/80">
       <div className="mx-auto max-w-7xl px-4 pt-3 sm:px-6">
         <div className="flex flex-wrap items-center justify-between gap-3 pb-3">
-          <Link href="/" className="flex flex-col leading-tight">
+          <Link href="/" className="flex flex-col leading-tight hover:opacity-80 transition">
             <span className="text-lg font-extrabold tracking-wide text-slate-900">
               GIDIS
             </span>
@@ -24,6 +24,16 @@ export async function SiteHeader() {
           </Link>
 
           <nav className="flex flex-wrap items-center justify-end gap-3 text-sm font-medium text-slate-700">
+            <Link
+              href="/"
+              className="rounded-full bg-amber-100 px-3 py-1.5 text-amber-900 font-semibold hover:bg-amber-200 transition flex items-center gap-1"
+              title="Back to home"
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-3m0 0l7-4 7 4M5 9v10a1 1 0 001 1h12a1 1 0 001-1V9m-9 11l4-4m0 0l4 4m-4-4v8" />
+              </svg>
+              Home
+            </Link>
             <BackTab />
             <Link href="/products" className="hover:text-sky-700">
               Shop

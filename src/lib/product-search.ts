@@ -16,7 +16,8 @@ export function productSearchWhereFromQuery(
       OR: [
         { name: { contains: word } },
         { description: { contains: word } },
-        { category: { contains: word } },
+        { category: { name: { contains: word } } },
+        { category: { slug: { contains: word } } },
         { slug: { contains: word } },
       ],
     })),

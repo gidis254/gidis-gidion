@@ -18,26 +18,27 @@ export default async function ProductsPage({ searchParams }: Props) {
     const sw = productSearchWhereFromQuery(query);
     if (Object.keys(sw).length) andParts.push(sw);
   }
-  if (cat && cat !== "all") andParts.push({ category: cat });
+  if (cat && cat !== "all") andParts.push({ category: { slug: cat } });
 
   const where: Prisma.ProductWhereInput | undefined =
     andParts.length > 0 ? { AND: andParts } : undefined;
 
   let products: Awaited<ReturnType<typeof prisma.product.findMany>> = [];
-  let cats: string[] = [];
+  let cats: { name: string; slug: string }[] = [];
   let dbUnavailable = false;
 
   try {
     products = await prisma.product.findMany({
       where,
       orderBy: { name: "asc" },
+      include: { category: true },
     });
 
-    const categories = await prisma.product.findMany({
-      select: { category: true },
-      distinct: ["category"],
+    const categories = await prisma.category.findMany({
+      select: { name: true, slug: true },
+      where: { parentId: null }, // Only main categories for now
     });
-    cats = categories.map((c) => c.category);
+    cats = categories;
   } catch (error) {
     if (isDbUnavailableError(error)) {
       dbUnavailable = true;
@@ -78,15 +79,15 @@ export default async function ProductsPage({ searchParams }: Props) {
           </Link>
           {cats.map((c) => (
             <Link
-              key={c}
-              href={`/products?cat=${encodeURIComponent(c)}${query ? `&q=${encodeURIComponent(query)}` : ""}`}
+              key={c.slug}
+              href={`/products?cat=${encodeURIComponent(c.slug)}${query ? `&q=${encodeURIComponent(query)}` : ""}`}
               className={`rounded-full px-3 py-1.5 text-sm font-medium ${
-                cat === c
+                cat === c.slug
                   ? "bg-slate-800 text-white"
                   : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
               }`}
             >
-              {c}
+              {c.name}
             </Link>
           ))}
         </div>

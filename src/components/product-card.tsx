@@ -3,7 +3,18 @@ import Link from "next/link";
 import type { Product } from "@prisma/client";
 import { formatKes } from "@/lib/format-kes";
 
-export function ProductCard({ product }: { product: Product }) {
+type ProductCardProps = {
+  product: Omit<Product, "category"> & {
+    category?: string | { name: string };
+  };
+};
+
+export function ProductCard({ product }: ProductCardProps) {
+  const categoryLabel =
+    typeof product.category === "string"
+      ? product.category
+      : product.category?.name ?? "";
+
   return (
     <Link
       href={`/products/${product.slug}`}
@@ -24,13 +35,10 @@ export function ProductCard({ product }: { product: Product }) {
         )}
       </div>
       <div className="flex flex-1 flex-col gap-1 p-3">
-        <p className="text-xs font-medium uppercase tracking-wide text-sky-700">
-          {product.category}
-        </p>
-        <h3 className="line-clamp-2 text-sm font-semibold text-slate-900 group-hover:text-sky-800">
+        <h3 className="line-clamp-2 text-sm font-bold text-slate-900 group-hover:text-amber-700">
           {product.name}
         </h3>
-        <p className="mt-auto pt-1 text-lg font-bold text-slate-800">
+        <p className="mt-auto pt-1 text-lg font-bold text-amber-600">
           {formatKes(product.price)}
         </p>
       </div>
